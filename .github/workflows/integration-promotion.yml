@@ -1,0 +1,314 @@
+name: Integration Promotion Pipeline
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy-integrations-staging:
+    if: contains(github.ref, '-rc')
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install ipctl
+        run: |
+          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
+          tar -xzf ipctl-linux-x86_64.tar.gz
+          sudo mv ipctl /usr/local/bin/
+
+      - name: Deploy integrations to Staging
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          INTEGRATION_GROUP: ${{ vars.INTEGRATION_GROUP }}
+        run: |
+          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
+            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
+          export IPCTL_CONFIG_FILE=/tmp/ipctl.ini
+
+          echo "============================================================"
+          echo "Starting integration deployment to Staging"
+          echo "============================================================"
+
+          # Find the previous tag to diff against; fall back to all specs on first tag
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all specs"
+            mapfile -t SPECS < <(find . -path "*/OpenAPIs/*.json" -type f)
+          else
+            echo "Diffing against $PREV_TAG"
+            mapfile -t SPECS < <(
+              git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+                | grep "OpenAPIs/.*\.json$" || true
+            )
+          fi
+
+          if [ ${#SPECS[@]} -eq 0 ]; then
+            echo "No integration changes detected — skipping"
+            exit 0
+          fi
+
+          echo "Processing ${#SPECS[@]} changed spec(s):"
+          printf '  %s\n' "${SPECS[@]}"
+
+          # ── Import integration models ─────────────────────────────────
+          for spec in "${SPECS[@]}"; do
+            name=$(basename "$spec" .json)
+            title=$(jq -r '.info.title' "$spec")
+            version=$(jq -r '.info.version' "$spec")
+            version_id="${title}:${version}"
+
+            existing=$(ipctl get integration-models --output json 2>/dev/null \
+              | jq -r --arg vid "$version_id" \
+                  '(if type == "array" then . else .integrationModels end)[] | select(.versionId == $vid) | .versionId' || true)
+
+            if [ -n "$existing" ]; then
+              echo "🗑️  Deleting existing model: $existing"
+              ipctl delete integration-model "$existing" || true
+            fi
+
+            echo "📥 Importing integration: $name"
+            if ipctl import integration-model "$spec" --verbose; then
+              echo "✅ Successfully imported: $name"
+            else
+              echo "⚠️  Skipping $name (import failed)"
+            fi
+          done
+
+          # ── Create integration instances (only for changed specs) ─────
+          for spec in "${SPECS[@]}"; do
+            name=$(basename "$spec" .json)
+            title=$(jq -r '.info.title' "$spec")
+            version=$(jq -r '.info.version' "$spec")
+            version_id="${title}:${version}"
+
+            if ipctl describe integration "$name" > /dev/null 2>&1; then
+              echo "ℹ️  Integration instance already exists: $name"
+            else
+              echo "🔧 Creating integration instance: $name (model: $version_id)"
+              if ipctl create integration "$name" --model "$version_id"; then
+                echo "✅ Created integration instance: $name"
+              else
+                echo "⚠️  Could not create instance: $name"
+              fi
+            fi
+          done
+
+          # ── Role management (disabled — service account needs /authorization/roles read permission)
+          # if [ -z "$INTEGRATION_GROUP" ]; then
+          #   echo "ℹ️  INTEGRATION_GROUP not set — skipping role management"
+          # else
+          #   echo "🔐 Assigning integration roles to group: $INTEGRATION_GROUP"
+          #
+          #   TOKEN=$(curl -f --max-time 30 -X POST "https://${HOST}/oauth/token" \
+          #     -H "Content-Type: application/x-www-form-urlencoded" \
+          #     -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+          #     | jq -r '.access_token' || true)
+          #
+          #   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+          #     echo "❌ Could not obtain token — failing"
+          #     exit 1
+          #   fi
+          #
+          #   PROVENANCES=$(for spec in "${SPECS[@]}"; do
+          #     jq -r '"\(.info.title):\(.info.version)"' "$spec"
+          #   done | jq -R . | jq -sc .)
+          #
+          #   ROLES=$(curl -sf --max-time 30 "https://${HOST}/authorization/roles?limit=100&sort=_id&order=-1" \
+          #     -H "Authorization: Bearer $TOKEN" \
+          #     | jq --argjson provs "$PROVENANCES" \
+          #         '[.results[] | select(.provenance as $p | $provs | index($p) != null)]')
+          #
+          #   if [ "$(echo "$ROLES" | jq 'length')" -eq 0 ]; then
+          #     echo "⚠️  No roles found matching integration provenances"
+          #   else
+          #     GROUP=$(curl -sf --max-time 30 "https://${HOST}/authorization/groups?limit=100&sort=_id&order=-1" \
+          #       -H "Authorization: Bearer $TOKEN" \
+          #       | jq --arg name "$INTEGRATION_GROUP" '.results[] | select(.name == $name)')
+          #
+          #     if [ -z "$GROUP" ] || [ "$GROUP" = "null" ]; then
+          #       echo "⚠️  Group '$INTEGRATION_GROUP' not found — skipping role management"
+          #     else
+          #       GROUP_ID=$(echo "$GROUP" | jq -r '._id')
+          #       EXISTING=$(echo "$GROUP" | jq '[.assignedRoles[]]')
+          #       NEW=$(echo "$ROLES" | jq '[.[] | {roleId: ._id}]')
+          #       MERGED=$(jq -n --argjson e "$EXISTING" --argjson n "$NEW" '($e + $n) | unique_by(.roleId)')
+          #
+          #       curl -sf --max-time 30 -X PATCH "https://${HOST}/authorization/groups/${GROUP_ID}" \
+          #         -H "Authorization: Bearer $TOKEN" \
+          #         -H "Content-Type: application/json" \
+          #         -d "{\"updates\": {\"assignedRoles\": $MERGED}}" > /dev/null
+          #
+          #       echo "$ROLES" | jq -r --arg g "$INTEGRATION_GROUP" \
+          #         '.[] | "✅ Assigned role \(.name) (\(.provenance)) to group \($g)"'
+          #     fi
+          #   fi
+          # fi
+
+          echo "============================================================"
+          echo "✅ Integration deployment to Staging completed"
+          echo "============================================================"
+
+
+  deploy-integrations-production:
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install ipctl
+        run: |
+          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
+          tar -xzf ipctl-linux-x86_64.tar.gz
+          sudo mv ipctl /usr/local/bin/
+
+      - name: Deploy integrations to Production
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          INTEGRATION_GROUP: ${{ vars.INTEGRATION_GROUP }}
+        run: |
+          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
+            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
+          export IPCTL_CONFIG_FILE=/tmp/ipctl.ini
+
+          echo "============================================================"
+          echo "Starting integration deployment to Production"
+          echo "============================================================"
+
+          # Find the previous tag to diff against; fall back to all specs on first tag
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all specs"
+            mapfile -t SPECS < <(find . -path "*/OpenAPIs/*.json" -type f)
+          else
+            echo "Diffing against $PREV_TAG"
+            mapfile -t SPECS < <(
+              git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+                | grep "OpenAPIs/.*\.json$" || true
+            )
+          fi
+
+          if [ ${#SPECS[@]} -eq 0 ]; then
+            echo "No integration changes detected — skipping"
+            exit 0
+          fi
+
+          echo "Processing ${#SPECS[@]} changed spec(s):"
+          printf '  %s\n' "${SPECS[@]}"
+
+          # ── Import integration models ─────────────────────────────────
+          for spec in "${SPECS[@]}"; do
+            name=$(basename "$spec" .json)
+            title=$(jq -r '.info.title' "$spec")
+            version=$(jq -r '.info.version' "$spec")
+            version_id="${title}:${version}"
+
+            existing=$(ipctl get integration-models --output json 2>/dev/null \
+              | jq -r --arg vid "$version_id" \
+                  '(if type == "array" then . else .integrationModels end)[] | select(.versionId == $vid) | .versionId' || true)
+
+            if [ -n "$existing" ]; then
+              echo "🗑️  Deleting existing model: $existing"
+              ipctl delete integration-model "$existing" || true
+            fi
+
+            echo "📥 Importing integration: $name"
+            if ipctl import integration-model "$spec" --verbose; then
+              echo "✅ Successfully imported: $name"
+            else
+              echo "⚠️  Skipping $name (import failed)"
+            fi
+          done
+
+          # ── Create integration instances (only for changed specs) ─────
+          for spec in "${SPECS[@]}"; do
+            name=$(basename "$spec" .json)
+            title=$(jq -r '.info.title' "$spec")
+            version=$(jq -r '.info.version' "$spec")
+            version_id="${title}:${version}"
+
+            if ipctl describe integration "$name" > /dev/null 2>&1; then
+              echo "ℹ️  Integration instance already exists: $name"
+            else
+              echo "🔧 Creating integration instance: $name (model: $version_id)"
+              if ipctl create integration "$name" --model "$version_id"; then
+                echo "✅ Created integration instance: $name"
+              else
+                echo "⚠️  Could not create instance: $name"
+              fi
+            fi
+          done
+
+          # ── Role management (disabled — service account needs /authorization/roles read permission)
+          # if [ -z "$INTEGRATION_GROUP" ]; then
+          #   echo "ℹ️  INTEGRATION_GROUP not set — skipping role management"
+          # else
+          #   echo "🔐 Assigning integration roles to group: $INTEGRATION_GROUP"
+          #
+          #   TOKEN=$(curl -f --max-time 30 -X POST "https://${HOST}/oauth/token" \
+          #     -H "Content-Type: application/x-www-form-urlencoded" \
+          #     -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+          #     | jq -r '.access_token' || true)
+          #
+          #   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+          #     echo "❌ Could not obtain token — failing"
+          #     exit 1
+          #   fi
+          #
+          #   PROVENANCES=$(for spec in "${SPECS[@]}"; do
+          #     jq -r '"\(.info.title):\(.info.version)"' "$spec"
+          #   done | jq -R . | jq -sc .)
+          #
+          #   ROLES=$(curl -sf --max-time 30 "https://${HOST}/authorization/roles?limit=100&sort=_id&order=-1" \
+          #     -H "Authorization: Bearer $TOKEN" \
+          #     | jq --argjson provs "$PROVENANCES" \
+          #         '[.results[] | select(.provenance as $p | $provs | index($p) != null)]')
+          #
+          #   if [ "$(echo "$ROLES" | jq 'length')" -eq 0 ]; then
+          #     echo "⚠️  No roles found matching integration provenances"
+          #   else
+          #     GROUP=$(curl -sf --max-time 30 "https://${HOST}/authorization/groups?limit=100&sort=_id&order=-1" \
+          #       -H "Authorization: Bearer $TOKEN" \
+          #       | jq --arg name "$INTEGRATION_GROUP" '.results[] | select(.name == $name)')
+          #
+          #     if [ -z "$GROUP" ] || [ "$GROUP" = "null" ]; then
+          #       echo "⚠️  Group '$INTEGRATION_GROUP' not found — skipping role management"
+          #     else
+          #       GROUP_ID=$(echo "$GROUP" | jq -r '._id')
+          #       EXISTING=$(echo "$GROUP" | jq '[.assignedRoles[]]')
+          #       NEW=$(echo "$ROLES" | jq '[.[] | {roleId: ._id}]')
+          #       MERGED=$(jq -n --argjson e "$EXISTING" --argjson n "$NEW" '($e + $n) | unique_by(.roleId)')
+          #
+          #       curl -sf --max-time 30 -X PATCH "https://${HOST}/authorization/groups/${GROUP_ID}" \
+          #         -H "Authorization: Bearer $TOKEN" \
+          #         -H "Content-Type: application/json" \
+          #         -d "{\"updates\": {\"assignedRoles\": $MERGED}}" > /dev/null
+          #
+          #       echo "$ROLES" | jq -r --arg g "$INTEGRATION_GROUP" \
+          #         '.[] | "✅ Assigned role \(.name) (\(.provenance)) to group \($g)"'
+          #     fi
+          #   fi
+          # fi
+
+          echo "============================================================"
+          echo "✅ Integration deployment to Production completed"
+          echo "============================================================"

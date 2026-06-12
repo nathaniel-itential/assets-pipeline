@@ -1,0 +1,36 @@
+name: RC Tag and Version Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  create-rc-tag:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RC_TAG_PAT }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create RC tag
+        id: bump
+        run: bash .github/scripts/bump-version.sh
+
+      - name: Job summary
+        run: |
+          echo "### RC Tag Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** \`${{ steps.bump.outputs.rc_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** \`${{ steps.bump.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bump type:** \`${{ steps.bump.outputs.bump_type }}\`" >> $GITHUB_STEP_SUMMARY

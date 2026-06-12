@@ -1,0 +1,90 @@
+name: Itential Asset Promotion Pipeline
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy-staging:
+    if: contains(github.ref, '-rc')
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install git+https://github.com/Itential/asyncplatform.git
+
+      - name: Deploy assets to Staging
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all assets"
+            export CHANGED_FILES=""
+          else
+            echo "Diffing against $PREV_TAG"
+            export CHANGED_FILES=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+              | jq -R . | jq -sc .)
+          fi
+
+          python .github/scripts/deploy.py Staging
+
+
+  deploy-production:
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install git+https://github.com/Itential/asyncplatform.git
+
+      - name: Deploy assets to Production
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all assets"
+            export CHANGED_FILES=""
+          else
+            echo "Diffing against $PREV_TAG"
+            export CHANGED_FILES=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+              | jq -R . | jq -sc .)
+          fi
+
+          python .github/scripts/deploy.py Production
