@@ -104,57 +104,6 @@ jobs:
             fi
           done
 
-          # ── Role management (disabled — service account needs /authorization/roles read permission)
-          # if [ -z "$INTEGRATION_GROUP" ]; then
-          #   echo "ℹ️  INTEGRATION_GROUP not set — skipping role management"
-          # else
-          #   echo "🔐 Assigning integration roles to group: $INTEGRATION_GROUP"
-          #
-          #   TOKEN=$(curl -f --max-time 30 -X POST "https://${HOST}/oauth/token" \
-          #     -H "Content-Type: application/x-www-form-urlencoded" \
-          #     -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
-          #     | jq -r '.access_token' || true)
-          #
-          #   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-          #     echo "❌ Could not obtain token — failing"
-          #     exit 1
-          #   fi
-          #
-          #   PROVENANCES=$(for spec in "${SPECS[@]}"; do
-          #     jq -r '"\(.info.title):\(.info.version)"' "$spec"
-          #   done | jq -R . | jq -sc .)
-          #
-          #   ROLES=$(curl -sf --max-time 30 "https://${HOST}/authorization/roles?limit=100&sort=_id&order=-1" \
-          #     -H "Authorization: Bearer $TOKEN" \
-          #     | jq --argjson provs "$PROVENANCES" \
-          #         '[.results[] | select(.provenance as $p | $provs | index($p) != null)]')
-          #
-          #   if [ "$(echo "$ROLES" | jq 'length')" -eq 0 ]; then
-          #     echo "⚠️  No roles found matching integration provenances"
-          #   else
-          #     GROUP=$(curl -sf --max-time 30 "https://${HOST}/authorization/groups?limit=100&sort=_id&order=-1" \
-          #       -H "Authorization: Bearer $TOKEN" \
-          #       | jq --arg name "$INTEGRATION_GROUP" '.results[] | select(.name == $name)')
-          #
-          #     if [ -z "$GROUP" ] || [ "$GROUP" = "null" ]; then
-          #       echo "⚠️  Group '$INTEGRATION_GROUP' not found — skipping role management"
-          #     else
-          #       GROUP_ID=$(echo "$GROUP" | jq -r '._id')
-          #       EXISTING=$(echo "$GROUP" | jq '[.assignedRoles[]]')
-          #       NEW=$(echo "$ROLES" | jq '[.[] | {roleId: ._id}]')
-          #       MERGED=$(jq -n --argjson e "$EXISTING" --argjson n "$NEW" '($e + $n) | unique_by(.roleId)')
-          #
-          #       curl -sf --max-time 30 -X PATCH "https://${HOST}/authorization/groups/${GROUP_ID}" \
-          #         -H "Authorization: Bearer $TOKEN" \
-          #         -H "Content-Type: application/json" \
-          #         -d "{\"updates\": {\"assignedRoles\": $MERGED}}" > /dev/null
-          #
-          #       echo "$ROLES" | jq -r --arg g "$INTEGRATION_GROUP" \
-          #         '.[] | "✅ Assigned role \(.name) (\(.provenance)) to group \($g)"'
-          #     fi
-          #   fi
-          # fi
-
           echo "============================================================"
           echo "✅ Integration deployment to Staging completed"
           echo "============================================================"
@@ -257,57 +206,6 @@ jobs:
               fi
             fi
           done
-
-          # ── Role management (disabled — service account needs /authorization/roles read permission)
-          # if [ -z "$INTEGRATION_GROUP" ]; then
-          #   echo "ℹ️  INTEGRATION_GROUP not set — skipping role management"
-          # else
-          #   echo "🔐 Assigning integration roles to group: $INTEGRATION_GROUP"
-          #
-          #   TOKEN=$(curl -f --max-time 30 -X POST "https://${HOST}/oauth/token" \
-          #     -H "Content-Type: application/x-www-form-urlencoded" \
-          #     -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
-          #     | jq -r '.access_token' || true)
-          #
-          #   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-          #     echo "❌ Could not obtain token — failing"
-          #     exit 1
-          #   fi
-          #
-          #   PROVENANCES=$(for spec in "${SPECS[@]}"; do
-          #     jq -r '"\(.info.title):\(.info.version)"' "$spec"
-          #   done | jq -R . | jq -sc .)
-          #
-          #   ROLES=$(curl -sf --max-time 30 "https://${HOST}/authorization/roles?limit=100&sort=_id&order=-1" \
-          #     -H "Authorization: Bearer $TOKEN" \
-          #     | jq --argjson provs "$PROVENANCES" \
-          #         '[.results[] | select(.provenance as $p | $provs | index($p) != null)]')
-          #
-          #   if [ "$(echo "$ROLES" | jq 'length')" -eq 0 ]; then
-          #     echo "⚠️  No roles found matching integration provenances"
-          #   else
-          #     GROUP=$(curl -sf --max-time 30 "https://${HOST}/authorization/groups?limit=100&sort=_id&order=-1" \
-          #       -H "Authorization: Bearer $TOKEN" \
-          #       | jq --arg name "$INTEGRATION_GROUP" '.results[] | select(.name == $name)')
-          #
-          #     if [ -z "$GROUP" ] || [ "$GROUP" = "null" ]; then
-          #       echo "⚠️  Group '$INTEGRATION_GROUP' not found — skipping role management"
-          #     else
-          #       GROUP_ID=$(echo "$GROUP" | jq -r '._id')
-          #       EXISTING=$(echo "$GROUP" | jq '[.assignedRoles[]]')
-          #       NEW=$(echo "$ROLES" | jq '[.[] | {roleId: ._id}]')
-          #       MERGED=$(jq -n --argjson e "$EXISTING" --argjson n "$NEW" '($e + $n) | unique_by(.roleId)')
-          #
-          #       curl -sf --max-time 30 -X PATCH "https://${HOST}/authorization/groups/${GROUP_ID}" \
-          #         -H "Authorization: Bearer $TOKEN" \
-          #         -H "Content-Type: application/json" \
-          #         -d "{\"updates\": {\"assignedRoles\": $MERGED}}" > /dev/null
-          #
-          #       echo "$ROLES" | jq -r --arg g "$INTEGRATION_GROUP" \
-          #         '.[] | "✅ Assigned role \(.name) (\(.provenance)) to group \($g)"'
-          #     fi
-          #   fi
-          # fi
 
           echo "============================================================"
           echo "✅ Integration deployment to Production completed"

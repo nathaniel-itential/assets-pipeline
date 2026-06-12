@@ -11,8 +11,6 @@ Currently supports:
     - Lifecycle Manager resources
     - Configuration Manager golden configs
 
-Integration models are handled separately by deploy_integrations.py.
-
 Usage:
     python deploy.py <environment>
 
