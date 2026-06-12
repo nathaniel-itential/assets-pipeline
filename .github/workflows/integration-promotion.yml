@@ -68,18 +68,11 @@ jobs:
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
-            existing=$(ipctl get integration-models --output json 2>/dev/null \
-              | jq -r --arg vid "$version_id" \
-                  '(if type == "array" then . else .integrationModels end)[] | select(.versionId == $vid) | .versionId' || true)
-
-            if [ -n "$existing" ]; then
-              if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
-                echo "🗑️  Deleting existing instance: $name"
-                ipctl delete integration "$name" || true
-              fi
-              echo "🗑️  Deleting existing model: $existing"
-              ipctl delete integration-model "$existing" || true
+            if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
+              echo "🗑️  Deleting existing instance: $name"
+              ipctl delete integration "$name" || true
             fi
+            ipctl delete integration-model "$version_id" 2>/dev/null || true
 
             echo "📥 Importing integration: $name"
             if ipctl import integration-model "$spec" --verbose; then
@@ -175,18 +168,11 @@ jobs:
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
-            existing=$(ipctl get integration-models --output json 2>/dev/null \
-              | jq -r --arg vid "$version_id" \
-                  '(if type == "array" then . else .integrationModels end)[] | select(.versionId == $vid) | .versionId' || true)
-
-            if [ -n "$existing" ]; then
-              if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
-                echo "🗑️  Deleting existing instance: $name"
-                ipctl delete integration "$name" || true
-              fi
-              echo "🗑️  Deleting existing model: $existing"
-              ipctl delete integration-model "$existing" || true
+            if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
+              echo "🗑️  Deleting existing instance: $name"
+              ipctl delete integration "$name" || true
             fi
+            ipctl delete integration-model "$version_id" 2>/dev/null || true
 
             echo "📥 Importing integration: $name"
             if ipctl import integration-model "$spec" --verbose; then
