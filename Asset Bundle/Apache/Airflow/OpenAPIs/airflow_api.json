@@ -2,11 +2,8 @@
   "openapi": "3.0.3",
   "servers": [
     {
-      "description": "Apache Airflow Stable API.",
-      "url": "/api/v1"
-    },
-    {
-      "url": "https://apache.local"
+      "url": "https://apache.local/api/v1",
+      "description": "Apache Airflow Stable API."
     }
   ],
   "info": {
@@ -41,7 +38,11 @@
   "externalDocs": {
     "url": "https://airflow.apache.org/docs/apache-airflow/stable/"
   },
-  "security": [],
+  "security": [
+    {
+      "Basic": []
+    }
+  ],
   "tags": [
     {
       "name": "Config"
@@ -6219,14 +6220,6 @@
     "securitySchemes": {
       "Basic": {
         "scheme": "basic",
-        "type": "http"
-      },
-      "GoogleOpenId": {
-        "openIdConnectUrl": "https://accounts.google.com/.well-known/openid-configuration",
-        "type": "openIdConnect"
-      },
-      "Kerberos": {
-        "scheme": "negotiate",
         "type": "http"
       }
     }
