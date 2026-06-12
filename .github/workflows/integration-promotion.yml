@@ -73,6 +73,10 @@ jobs:
                   '(if type == "array" then . else .integrationModels end)[] | select(.versionId == $vid) | .versionId' || true)
 
             if [ -n "$existing" ]; then
+              if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
+                echo "🗑️  Deleting existing instance: $name"
+                ipctl delete integration "$name" || true
+              fi
               echo "🗑️  Deleting existing model: $existing"
               ipctl delete integration-model "$existing" || true
             fi
@@ -176,6 +180,10 @@ jobs:
                   '(if type == "array" then . else .integrationModels end)[] | select(.versionId == $vid) | .versionId' || true)
 
             if [ -n "$existing" ]; then
+              if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
+                echo "🗑️  Deleting existing instance: $name"
+                ipctl delete integration "$name" || true
+              fi
               echo "🗑️  Deleting existing model: $existing"
               ipctl delete integration-model "$existing" || true
             fi
