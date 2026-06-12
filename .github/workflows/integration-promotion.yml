@@ -68,7 +68,7 @@ jobs:
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
-            if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
+            if ipctl describe integration "$name" > /dev/null 2>&1; then
               echo "🗑️  Deleting existing instance: $name"
               ipctl delete integration "$name" || true
             fi
@@ -168,7 +168,7 @@ jobs:
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
-            if timeout 30 ipctl describe integration "$name" > /dev/null 2>&1; then
+            if ipctl describe integration "$name" > /dev/null 2>&1; then
               echo "🗑️  Deleting existing instance: $name"
               ipctl delete integration "$name" || true
             fi
