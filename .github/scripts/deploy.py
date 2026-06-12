@@ -197,7 +197,7 @@ class AssetDeployer:
                 print(f"✅ Successfully imported automation: {result['name']}")
             except Exception as e:
                 print(f"❌ Failed to import automation {automation_name}: {e}")
-                raise
+                print(f"⚠️  Skipping {automation_name} and continuing deployment")
     
     async def deploy_lifecycle_manager_resources(
         self, client: Any, resource_files: list[Path]
