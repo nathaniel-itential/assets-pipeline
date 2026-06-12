@@ -33,10 +33,10 @@ jobs:
           CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
           PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
-          GITHUB_REF_NAME: ${{ github.event.workflow_run.head_branch }}
+          CURRENT_TAG: ${{ github.event.workflow_run.head_branch }}
         run: |
           PREV_TAG=$(git tag --sort=-creatordate \
-            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+            | grep -v "^${CURRENT_TAG}$" | head -1 || true)
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
@@ -77,10 +77,10 @@ jobs:
           CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
           PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
-          GITHUB_REF_NAME: ${{ github.event.workflow_run.head_branch }}
+          CURRENT_TAG: ${{ github.event.workflow_run.head_branch }}
         run: |
           PREV_TAG=$(git tag --sort=-creatordate \
-            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+            | grep -v "^${CURRENT_TAG}$" | head -1 || true)
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
