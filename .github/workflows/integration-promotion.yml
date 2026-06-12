@@ -68,6 +68,13 @@ jobs:
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
+            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
+            max_bytes=15728640  # 14.99 MB
+            if [ "$size_bytes" -gt "$max_bytes" ]; then
+              echo "⚠️  Skipping $name — spec too large ($(( size_bytes / 1048576 )) MB > 14.99 MB limit)"
+              continue
+            fi
+
             if ipctl describe integration "$name" > /dev/null 2>&1; then
               echo "🗑️  Deleting existing instance: $name"
               ipctl delete integration "$name" || true
@@ -85,6 +92,13 @@ jobs:
           # ── Create integration instances (only for changed specs) ─────
           for spec in "${SPECS[@]}"; do
             name=$(basename "$spec" .json)
+
+            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
+            max_bytes=15728640  # 14.99 MB
+            if [ "$size_bytes" -gt "$max_bytes" ]; then
+              continue
+            fi
+
             title=$(jq -r '.info.title' "$spec")
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
@@ -168,6 +182,13 @@ jobs:
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
+            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
+            max_bytes=15728640  # 14.99 MB
+            if [ "$size_bytes" -gt "$max_bytes" ]; then
+              echo "⚠️  Skipping $name — spec too large ($(( size_bytes / 1048576 )) MB > 14.99 MB limit)"
+              continue
+            fi
+
             if ipctl describe integration "$name" > /dev/null 2>&1; then
               echo "🗑️  Deleting existing instance: $name"
               ipctl delete integration "$name" || true
@@ -185,6 +206,13 @@ jobs:
           # ── Create integration instances (only for changed specs) ─────
           for spec in "${SPECS[@]}"; do
             name=$(basename "$spec" .json)
+
+            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
+            max_bytes=15728640  # 14.99 MB
+            if [ "$size_bytes" -gt "$max_bytes" ]; then
+              continue
+            fi
+
             title=$(jq -r '.info.title' "$spec")
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
