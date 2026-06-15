@@ -90,30 +90,30 @@ jobs:
           done
 
           # ── Create integration instances (only for changed specs) ─────
-          for spec in "${SPECS[@]}"; do
-            name=$(basename "$spec" .json)
-
-            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
-            max_bytes=15728640  # 14.99 MB
-            if [ "$size_bytes" -gt "$max_bytes" ]; then
-              continue
-            fi
-
-            title=$(jq -r '.info.title' "$spec")
-            version=$(jq -r '.info.version' "$spec")
-            version_id="${title}:${version}"
-
-            if ipctl describe integration "$name" > /dev/null 2>&1; then
-              echo "ℹ️  Integration instance already exists: $name"
-            else
-              echo "🔧 Creating integration instance: $name (model: $version_id)"
-              if ipctl create integration "$name" --model "$version_id"; then
-                echo "✅ Created integration instance: $name"
-              else
-                echo "⚠️  Could not create instance: $name"
-              fi
-            fi
-          done
+          # for spec in "${SPECS[@]}"; do
+          #   name=$(basename "$spec" .json)
+          #
+          #   size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
+          #   max_bytes=15728640  # 14.99 MB
+          #   if [ "$size_bytes" -gt "$max_bytes" ]; then
+          #     continue
+          #   fi
+          #
+          #   title=$(jq -r '.info.title' "$spec")
+          #   version=$(jq -r '.info.version' "$spec")
+          #   version_id="${title}:${version}"
+          #
+          #   if ipctl describe integration "$name" > /dev/null 2>&1; then
+          #     echo "ℹ️  Integration instance already exists: $name"
+          #   else
+          #     echo "🔧 Creating integration instance: $name (model: $version_id)"
+          #     if ipctl create integration "$name" --model "$version_id"; then
+          #       echo "✅ Created integration instance: $name"
+          #     else
+          #       echo "⚠️  Could not create instance: $name"
+          #     fi
+          #   fi
+          # done
 
           echo "============================================================"
           echo "✅ Integration deployment to Staging completed"
@@ -204,30 +204,30 @@ jobs:
           done
 
           # ── Create integration instances (only for changed specs) ─────
-          for spec in "${SPECS[@]}"; do
-            name=$(basename "$spec" .json)
-
-            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
-            max_bytes=15728640  # 14.99 MB
-            if [ "$size_bytes" -gt "$max_bytes" ]; then
-              continue
-            fi
-
-            title=$(jq -r '.info.title' "$spec")
-            version=$(jq -r '.info.version' "$spec")
-            version_id="${title}:${version}"
-
-            if ipctl describe integration "$name" > /dev/null 2>&1; then
-              echo "ℹ️  Integration instance already exists: $name"
-            else
-              echo "🔧 Creating integration instance: $name (model: $version_id)"
-              if ipctl create integration "$name" --model "$version_id"; then
-                echo "✅ Created integration instance: $name"
-              else
-                echo "⚠️  Could not create instance: $name"
-              fi
-            fi
-          done
+          # for spec in "${SPECS[@]}"; do
+          #   name=$(basename "$spec" .json)
+          #
+          #   size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
+          #   max_bytes=15728640  # 14.99 MB
+          #   if [ "$size_bytes" -gt "$max_bytes" ]; then
+          #     continue
+          #   fi
+          #
+          #   title=$(jq -r '.info.title' "$spec")
+          #   version=$(jq -r '.info.version' "$spec")
+          #   version_id="${title}:${version}"
+          #
+          #   if ipctl describe integration "$name" > /dev/null 2>&1; then
+          #     echo "ℹ️  Integration instance already exists: $name"
+          #   else
+          #     echo "🔧 Creating integration instance: $name (model: $version_id)"
+          #     if ipctl create integration "$name" --model "$version_id"; then
+          #       echo "✅ Created integration instance: $name"
+          #     else
+          #       echo "⚠️  Could not create instance: $name"
+          #     fi
+          #   fi
+          # done
 
           echo "============================================================"
           echo "✅ Integration deployment to Production completed"
