@@ -43,10 +43,13 @@ jobs:
             find . -path "*/OpenAPIs/*.json" -type f > /tmp/specs.txt
           else
             echo "Diffing against $PREV_TAG"
+
+            # This gets the name of every changed file, and filters to json files inside an OpenAPI folder
             git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
               | grep "OpenAPIs/.*\.json$" > /tmp/specs.txt || true
           fi
 
+          #get count by counting number of lines in specs
           count=$(wc -l < /tmp/specs.txt | tr -d ' ')
           if [ "$count" -eq 0 ]; then
             echo "No integration changes detected — skipping"
@@ -62,12 +65,14 @@ jobs:
         env:
           IPCTL_CONFIG_FILE: /tmp/ipctl.ini
         run: |
+          #IFS eliminates spaces in spec titles to ensure proper handling
           while IFS= read -r spec; do
             name=$(basename "$spec" .json)
             title=$(jq -r '.info.title' "$spec")
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
+            #size check for spec since this is not done when using ipctl to import
             size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
             max_bytes=15728640  # 14.99 MB
             if [ "$size_bytes" -gt "$max_bytes" ]; then
@@ -156,10 +161,13 @@ jobs:
             find . -path "*/OpenAPIs/*.json" -type f > /tmp/specs.txt
           else
             echo "Diffing against $PREV_TAG"
+
+            # This gets the name of every changed file, and filters to json files inside an OpenAPI folder
             git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
               | grep "OpenAPIs/.*\.json$" > /tmp/specs.txt || true
           fi
 
+          #get count by counting number of lines in specs
           count=$(wc -l < /tmp/specs.txt | tr -d ' ')
           if [ "$count" -eq 0 ]; then
             echo "No integration changes detected — skipping"
@@ -175,12 +183,14 @@ jobs:
         env:
           IPCTL_CONFIG_FILE: /tmp/ipctl.ini
         run: |
+          #IFS eliminates spaces in spec titles to ensure proper handling
           while IFS= read -r spec; do
             name=$(basename "$spec" .json)
             title=$(jq -r '.info.title' "$spec")
             version=$(jq -r '.info.version' "$spec")
             version_id="${title}:${version}"
 
+            #size check for spec since this is not done when using ipctl to import
             size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
             max_bytes=15728640  # 14.99 MB
             if [ "$size_bytes" -gt "$max_bytes" ]; then
