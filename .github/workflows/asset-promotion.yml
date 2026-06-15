@@ -27,12 +27,8 @@ jobs:
         run: |
           pip install git+https://github.com/Itential/asyncplatform.git
 
-      - name: Deploy assets to Staging
-        env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
-          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
+      - name: Find changed files
+        id: find-files
         run: |
           CURRENT_TAG=$(git tag --points-at HEAD | head -1 || true)
           PREV_TAG=$(git tag --sort=-creatordate \
@@ -40,13 +36,23 @@ jobs:
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
-            export CHANGED_FILES=""
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
           else
             echo "Diffing against $PREV_TAG"
-            export CHANGED_FILES=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+            # Get all added/modified files between the previous tag and HEAD, output as a JSON array
+            CHANGED=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
               | jq -R . | jq -sc .)
+            echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Deploy assets to Staging
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
+          CHANGED_FILES: ${{ steps.find-files.outputs.changed_files }}
+        run: |
           python .github/scripts/deploy.py Staging
 
 
@@ -71,12 +77,8 @@ jobs:
         run: |
           pip install git+https://github.com/Itential/asyncplatform.git
 
-      - name: Deploy assets to Production
-        env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
-          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
+      - name: Find changed files
+        id: find-files
         run: |
           CURRENT_TAG=$(git tag --points-at HEAD | head -1 || true)
           PREV_TAG=$(git tag --sort=-creatordate \
@@ -84,11 +86,21 @@ jobs:
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
-            export CHANGED_FILES=""
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
           else
             echo "Diffing against $PREV_TAG"
-            export CHANGED_FILES=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+            # Get all added/modified files between the previous tag and HEAD, output as a JSON array
+            CHANGED=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
               | jq -R . | jq -sc .)
+            echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Deploy assets to Production
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
+          CHANGED_FILES: ${{ steps.find-files.outputs.changed_files }}
+        run: |
           python .github/scripts/deploy.py Production
