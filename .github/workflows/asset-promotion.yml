@@ -37,15 +37,26 @@ jobs:
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
             echo "changed_files=" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
           else
             echo "Diffing against $PREV_TAG"
             # Get all added/modified files between the previous tag and HEAD, output as a JSON array
             CHANGED=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
               | jq -R . | jq -sc .)
             echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
+
+            # Check if any changed files are actual asset files
+            if echo "$CHANGED" | jq -r '.[]' \
+              | grep -qE "(Projects|Automations|LCM Resource Models|Golden Configurations)/.*\.json$"; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No asset changes detected — skipping"
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Deploy assets to Staging
+        if: steps.find-files.outputs.has_changes == 'true'
         env:
           HOST: ${{ secrets.PLATFORM_HOST }}
           CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
@@ -87,15 +98,26 @@ jobs:
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
             echo "changed_files=" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
           else
             echo "Diffing against $PREV_TAG"
             # Get all added/modified files between the previous tag and HEAD, output as a JSON array
             CHANGED=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
               | jq -R . | jq -sc .)
             echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
+
+            # Check if any changed files are actual asset files
+            if echo "$CHANGED" | jq -r '.[]' \
+              | grep -qE "(Projects|Automations|LCM Resource Models|Golden Configurations)/.*\.json$"; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No asset changes detected — skipping"
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Deploy assets to Production
+        if: steps.find-files.outputs.has_changes == 'true'
         env:
           HOST: ${{ secrets.PLATFORM_HOST }}
           CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
