@@ -17,111 +17,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install ipctl
-        run: |
-          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
-          tar -xzf ipctl-linux-x86_64.tar.gz
-          sudo mv ipctl /usr/local/bin/
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Configure ipctl
-        env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+      - name: Install dependencies
         run: |
-          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
-            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
+          pip install git+https://github.com/nathaniel-itential/asyncplatform.git@devel
 
       - name: Find changed specs
         id: find-specs
-        run: |
-          PREV_TAG=$(git tag --sort=-creatordate \
-            | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
-
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag — processing all specs"
-            find . -path "*/OpenAPIs/*.json" -type f > /tmp/specs.txt
-          else
-            echo "Diffing against $PREV_TAG"
-
-            # This gets the name of every changed file, and filters to json files inside an OpenAPI folder
-            git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
-              | grep "OpenAPIs/.*\.json$" > /tmp/specs.txt || true
-          fi
-
-          #get count by counting number of lines in specs
-          count=$(wc -l < /tmp/specs.txt | tr -d ' ')
-          if [ "$count" -eq 0 ]; then
-            echo "No integration changes detected — skipping"
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Found $count changed spec(s):"
-            cat /tmp/specs.txt
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash .github/scripts/integration_diff.sh --stg
 
       - name: Import integration models
         if: steps.find-specs.outputs.has_changes == 'true'
         env:
-          IPCTL_CONFIG_FILE: /tmp/ipctl.ini
-        run: |
-          #IFS eliminates spaces in spec titles to ensure proper handling
-          while IFS= read -r spec; do
-            name=$(basename "$spec" .json)
-            title=$(jq -r '.info.title' "$spec")
-            version=$(jq -r '.info.version' "$spec")
-            version_id="${title}:${version}"
-
-            #size check for spec since this is not done when using ipctl to import
-            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
-            max_bytes=15728640  # 14.99 MB
-            if [ "$size_bytes" -gt "$max_bytes" ]; then
-              echo "⚠️  Skipping $name — spec too large ($(( size_bytes / 1048576 )) MB > 14.99 MB limit)"
-              continue
-            fi
-
-            if ipctl describe integration "$name" > /dev/null 2>&1; then
-              echo "🗑️  Deleting existing instance: $name"
-              ipctl delete integration "$name" || true
-            fi
-            ipctl delete integration-model "$version_id" 2>/dev/null || true
-
-            echo "📥 Importing integration: $name"
-            if ipctl import integration-model "$spec" --verbose; then
-              echo "✅ Successfully imported: $name"
-            else
-              echo "⚠️  Skipping $name (import failed)"
-            fi
-          done < /tmp/specs.txt
-
-      # - name: Create integration instances
-      #   if: steps.find-specs.outputs.has_changes == 'true'
-      #   env:
-      #     IPCTL_CONFIG_FILE: /tmp/ipctl.ini
-      #   run: |
-      #     while IFS= read -r spec; do
-      #       name=$(basename "$spec" .json)
-      #       title=$(jq -r '.info.title' "$spec")
-      #       version=$(jq -r '.info.version' "$spec")
-      #       version_id="${title}:${version}"
-      #
-      #       size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
-      #       max_bytes=15728640  # 14.99 MB
-      #       if [ "$size_bytes" -gt "$max_bytes" ]; then
-      #         continue
-      #       fi
-      #
-      #       if ipctl describe integration "$name" > /dev/null 2>&1; then
-      #         echo "ℹ️  Integration instance already exists: $name"
-      #       else
-      #         echo "🔧 Creating integration instance: $name (model: $version_id)"
-      #         if ipctl create integration "$name" --model "$version_id"; then
-      #           echo "✅ Created integration instance: $name"
-      #         else
-      #           echo "⚠️  Could not create instance: $name"
-      #         fi
-      #       fi
-      #     done < /tmp/specs.txt
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+        run: python .github/scripts/deploy_integrations.py Staging
 
 
   deploy-integrations-production:
@@ -135,108 +50,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install ipctl
-        run: |
-          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
-          tar -xzf ipctl-linux-x86_64.tar.gz
-          sudo mv ipctl /usr/local/bin/
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Configure ipctl
-        env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+      - name: Install dependencies
         run: |
-          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
-            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
+          pip install git+https://github.com/nathaniel-itential/asyncplatform.git@devel
 
       - name: Find changed specs
         id: find-specs
-        run: |
-          PREV_TAG=$(git tag --sort=-creatordate \
-            | grep -v "^${GITHUB_REF_NAME}$" | grep -v "\-rc" | head -1 || true)
-
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag — processing all specs"
-            find . -path "*/OpenAPIs/*.json" -type f > /tmp/specs.txt
-          else
-            echo "Diffing against $PREV_TAG"
-
-            # This gets the name of every changed file, and filters to json files inside an OpenAPI folder
-            git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
-              | grep "OpenAPIs/.*\.json$" > /tmp/specs.txt || true
-          fi
-
-          #get count by counting number of lines in specs
-          count=$(wc -l < /tmp/specs.txt | tr -d ' ')
-          if [ "$count" -eq 0 ]; then
-            echo "No integration changes detected — skipping"
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Found $count changed spec(s):"
-            cat /tmp/specs.txt
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash .github/scripts/integration_diff.sh --prod
 
       - name: Import integration models
         if: steps.find-specs.outputs.has_changes == 'true'
         env:
-          IPCTL_CONFIG_FILE: /tmp/ipctl.ini
-        run: |
-          #IFS eliminates spaces in spec titles to ensure proper handling
-          while IFS= read -r spec; do
-            name=$(basename "$spec" .json)
-            title=$(jq -r '.info.title' "$spec")
-            version=$(jq -r '.info.version' "$spec")
-            version_id="${title}:${version}"
-
-            #size check for spec since this is not done when using ipctl to import
-            size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
-            max_bytes=15728640  # 14.99 MB
-            if [ "$size_bytes" -gt "$max_bytes" ]; then
-              echo "⚠️  Skipping $name — spec too large ($(( size_bytes / 1048576 )) MB > 14.99 MB limit)"
-              continue
-            fi
-
-            if ipctl describe integration "$name" > /dev/null 2>&1; then
-              echo "🗑️  Deleting existing instance: $name"
-              ipctl delete integration "$name" || true
-            fi
-            ipctl delete integration-model "$version_id" 2>/dev/null || true
-
-            echo "📥 Importing integration: $name"
-            if ipctl import integration-model "$spec" --verbose; then
-              echo "✅ Successfully imported: $name"
-            else
-              echo "⚠️  Skipping $name (import failed)"
-            fi
-          done < /tmp/specs.txt
-
-      # - name: Create integration instances
-      #   if: steps.find-specs.outputs.has_changes == 'true'
-      #   env:
-      #     IPCTL_CONFIG_FILE: /tmp/ipctl.ini
-      #   run: |
-      #     while IFS= read -r spec; do
-      #       name=$(basename "$spec" .json)
-      #       title=$(jq -r '.info.title' "$spec")
-      #       version=$(jq -r '.info.version' "$spec")
-      #       version_id="${title}:${version}"
-      #
-      #       size_bytes=$(stat -c%s "$spec" 2>/dev/null || stat -f%z "$spec")
-      #       max_bytes=15728640  # 14.99 MB
-      #       if [ "$size_bytes" -gt "$max_bytes" ]; then
-      #         continue
-      #       fi
-      #
-      #       if ipctl describe integration "$name" > /dev/null 2>&1; then
-      #         echo "ℹ️  Integration instance already exists: $name"
-      #       else
-      #         echo "🔧 Creating integration instance: $name (model: $version_id)"
-      #         if ipctl create integration "$name" --model "$version_id"; then
-      #           echo "✅ Created integration instance: $name"
-      #         else
-      #           echo "⚠️  Could not create instance: $name"
-      #         fi
-      #       fi
-      #     done < /tmp/specs.txt
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+        run: python .github/scripts/deploy_integrations.py Production
