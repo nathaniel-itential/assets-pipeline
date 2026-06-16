@@ -93,7 +93,7 @@ jobs:
         run: |
           CURRENT_TAG=$(git tag --points-at HEAD | head -1 || true)
           PREV_TAG=$(git tag --sort=-creatordate \
-            | grep -v "^${CURRENT_TAG}$" | head -1 || true)
+            | grep -v "^${CURRENT_TAG}$" | grep -v "\-rc" | head -1 || true)
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag — processing all assets"
