@@ -28,7 +28,32 @@ jobs:
 
       - name: Find changed specs
         id: find-specs
-        run: bash .github/scripts/integration_diff.sh --stg
+        env:
+          OPENAPI_DIR: "OpenAPIs"
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${GITHUB_REF_NAME}$" \
+            | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all specs"
+            CHANGED_SPECS=$(find . -path "*/${OPENAPI_DIR}/*.json" -type f | jq -R . | jq -sc .)
+          else
+            echo "Diffing against $PREV_TAG"
+            CHANGED_SPECS=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+              | grep "${OPENAPI_DIR}/.*\.json$" | jq -R . | jq -sc . || echo "[]")
+          fi
+
+          echo "$CHANGED_SPECS" | jq -r '.[]' > /tmp/specs.txt
+          echo "changed_specs=$CHANGED_SPECS" >> "$GITHUB_OUTPUT"
+          count=$(echo "$CHANGED_SPECS" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "No integration changes detected — skipping"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found $count changed spec(s)"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Import integration models
         if: steps.find-specs.outputs.has_changes == 'true'
@@ -36,6 +61,7 @@ jobs:
           HOST: ${{ secrets.PLATFORM_HOST }}
           CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          CHANGED_SPECS: ${{ steps.find-specs.outputs.changed_specs }}
         run: python .github/scripts/deploy_integrations.py Staging
 
 
@@ -61,7 +87,33 @@ jobs:
 
       - name: Find changed specs
         id: find-specs
-        run: bash .github/scripts/integration_diff.sh --prod
+        env:
+          OPENAPI_DIR: "OpenAPIs"
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${GITHUB_REF_NAME}$" \
+            | grep -v "\-rc" \
+            | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all specs"
+            CHANGED_SPECS=$(find . -path "*/${OPENAPI_DIR}/*.json" -type f | jq -R . | jq -sc .)
+          else
+            echo "Diffing against $PREV_TAG"
+            CHANGED_SPECS=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+              | grep "${OPENAPI_DIR}/.*\.json$" | jq -R . | jq -sc . || echo "[]")
+          fi
+
+          echo "$CHANGED_SPECS" | jq -r '.[]' > /tmp/specs.txt
+          echo "changed_specs=$CHANGED_SPECS" >> "$GITHUB_OUTPUT"
+          count=$(echo "$CHANGED_SPECS" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "No integration changes detected — skipping"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found $count changed spec(s)"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Import integration models
         if: steps.find-specs.outputs.has_changes == 'true'
@@ -69,4 +121,5 @@ jobs:
           HOST: ${{ secrets.PLATFORM_HOST }}
           CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          CHANGED_SPECS: ${{ steps.find-specs.outputs.changed_specs }}
         run: python .github/scripts/deploy_integrations.py Production
