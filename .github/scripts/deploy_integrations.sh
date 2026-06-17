@@ -19,7 +19,11 @@ while IFS= read -r spec; do
     echo "🗑️  Deleting existing instance: $name"
     ipctl delete integration "$name" || true
   fi
-  ipctl delete integration-model "$version_id" 2>/dev/null || true
+
+  if ipctl describe integration-model "$version_id" > /dev/null 2>&1; then
+    echo "🗑️  Deleting existing model: $version_id"
+    ipctl delete integration-model "$version_id" || true
+  fi
 
   echo "📥 Importing integration: $name"
   if ipctl import integration-model "$spec" --verbose; then
