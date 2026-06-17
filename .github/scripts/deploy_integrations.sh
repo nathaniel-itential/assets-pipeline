@@ -15,11 +15,6 @@ while IFS= read -r spec; do
     continue
   fi
 
-  if ipctl describe integration "$name" > /dev/null 2>&1; then
-    echo "🗑️  Deleting existing instance: $name"
-    ipctl delete integration "$name" || true
-  fi
-
   if ipctl describe integration-model "$version_id" > /dev/null 2>&1; then
     echo "🗑️  Deleting existing model: $version_id"
     ipctl delete integration-model "$version_id" || true
