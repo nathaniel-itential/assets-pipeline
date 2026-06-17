@@ -73,15 +73,18 @@ Tags are used by this pipeline to determine what to import into the platform. Fo
 │
 ├── pipelines/
 │   ├── github/                # GitHub Actions pipeline definitions
-│   ├── gitlab/                # GitLab CI/CD pipeline definitions
-│   ├── scripts/               # Shared deployment scripts
-│   │   ├── deploy.py
-│   │   ├──bump-version.sh
-|   |   ├── deploy_integrations.py      # uses modified async-platform to support integrations
-|   |   ├── deploy_integrations.sh      # uses ipctl
-|   |   ├── integrations_diff.sh        # git diff logic for stg and prod for integrations
-|   |   └── assets_diff.sh              # git diff logic for stg and prod for assets
-|   |  
+│   |   ├── scripts/               # Shared deployment scripts
+│   │   │    ├── deploy.py
+│   │   │    ├── bump-version.sh
+|   |   │    ├── deploy_integrations.py      # uses modified async-platform to support integrations
+|   |   │    ├── deploy_integrations.sh      # uses ipctl
+|   |   │    ├── integrations_diff.sh        # git diff logic for stg and prod for integrations
+|   |   │    └── assets_diff.sh              # git diff logic for stg and prod for assets
+|   |   └── workflows/
+│   │       ├── asset-promotion.yaml
+│   │       ├── integration-promotion.yaml
+│   │       └── auto-rc-tag.yaml
+|   | 
 │   └──  workflows             # yaml files to determine github actions
 |      ├── integration-promotion.yaml   # runs first, triggered by tag (-rc means stg, else prod)
 |      ├── asset-promotion.yaml         # runs after successful completion of integration promotion, tag decides env (-rc means stg, else prod)
@@ -145,4 +148,4 @@ The deploy script auto-discovers any bundles matching this structure. No additio
 
 Copyright 2026 Itential, LLC
 
-This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.v
