@@ -17,14 +17,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
+      - name: Install ipctl
         run: |
-          pip install git+https://github.com/nathaniel-itential/asyncplatform.git@devel
+          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
+          tar -xzf ipctl-linux-x86_64.tar.gz
+          sudo mv ipctl /usr/local/bin/
+
+      - name: Configure ipctl
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+        run: |
+          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
+            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
 
       - name: Find changed specs
         id: find-specs
@@ -44,7 +50,6 @@ jobs:
               | grep "${OPENAPI_DIR}/.*\.json$" | jq -R . | jq -sc . || echo "[]")
           fi
 
-          echo "$CHANGED_SPECS" | jq -r '.[]' > /tmp/specs.txt
           echo "changed_specs=$CHANGED_SPECS" >> "$GITHUB_OUTPUT"
           count=$(echo "$CHANGED_SPECS" | jq 'length')
           if [ "$count" -eq 0 ]; then
@@ -58,11 +63,9 @@ jobs:
       - name: Import integration models
         if: steps.find-specs.outputs.has_changes == 'true'
         env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          IPCTL_CONFIG_FILE: /tmp/ipctl.ini
           CHANGED_SPECS: ${{ steps.find-specs.outputs.changed_specs }}
-        run: python .github/scripts/deploy_integrations.py Staging
+        run: bash .github/scripts/deploy_integrations.sh
 
 
   deploy-integrations-production:
@@ -76,14 +79,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
+      - name: Install ipctl
         run: |
-          pip install git+https://github.com/nathaniel-itential/asyncplatform.git@devel
+          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
+          tar -xzf ipctl-linux-x86_64.tar.gz
+          sudo mv ipctl /usr/local/bin/
+
+      - name: Configure ipctl
+        env:
+          HOST: ${{ secrets.PLATFORM_HOST }}
+          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+        run: |
+          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
+            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
 
       - name: Find changed specs
         id: find-specs
@@ -104,7 +113,6 @@ jobs:
               | grep "${OPENAPI_DIR}/.*\.json$" | jq -R . | jq -sc . || echo "[]")
           fi
 
-          echo "$CHANGED_SPECS" | jq -r '.[]' > /tmp/specs.txt
           echo "changed_specs=$CHANGED_SPECS" >> "$GITHUB_OUTPUT"
           count=$(echo "$CHANGED_SPECS" | jq 'length')
           if [ "$count" -eq 0 ]; then
@@ -118,8 +126,6 @@ jobs:
       - name: Import integration models
         if: steps.find-specs.outputs.has_changes == 'true'
         env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
+          IPCTL_CONFIG_FILE: /tmp/ipctl.ini
           CHANGED_SPECS: ${{ steps.find-specs.outputs.changed_specs }}
-        run: python .github/scripts/deploy_integrations.py Production
+        run: bash .github/scripts/deploy_integrations.sh
