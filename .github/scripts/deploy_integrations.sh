@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#IFS eliminates spaces in spec titles to ensure proper handling
 while IFS= read -r spec; do
   name=$(basename "$spec" .json)
   title=$(jq -r '.info.title' "$spec")
@@ -28,4 +27,4 @@ while IFS= read -r spec; do
   else
     echo "⚠️  Skipping $name (import failed)"
   fi
-done < /tmp/specs.txt
+done < <(echo "$CHANGED_SPECS" | jq -r '.[]')

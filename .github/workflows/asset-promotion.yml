@@ -29,7 +29,32 @@ jobs:
 
       - name: Find changed files
         id: find-files
-        run: bash .github/scripts/assets_diff.sh --stg
+        env:
+          ASSET_DIRS: "Projects|Automations|LCM Resource Models|Golden Configurations"
+        run: |
+          CURRENT_TAG=$(git tag --points-at HEAD | head -1 || true)
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${CURRENT_TAG}$" \
+            | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all assets"
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Diffing against $PREV_TAG"
+            CHANGED=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+              | jq -R . | jq -sc .)
+            echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
+
+            if echo "$CHANGED" | jq -r '.[]' \
+              | grep -qE "(${ASSET_DIRS})/.*\.json$"; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No asset changes detected — skipping"
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
       - name: Deploy assets to Staging
         if: steps.find-files.outputs.has_changes == 'true'
@@ -66,7 +91,33 @@ jobs:
 
       - name: Find changed files
         id: find-files
-        run: bash .github/scripts/assets_diff.sh --prod
+        env:
+          ASSET_DIRS: "Projects|Automations|LCM Resource Models|Golden Configurations"
+        run: |
+          CURRENT_TAG=$(git tag --points-at HEAD | head -1 || true)
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | grep -v "^${CURRENT_TAG}$" \
+            | grep -v "\-rc" \
+            | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag — processing all assets"
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Diffing against $PREV_TAG"
+            CHANGED=$(git diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+              | jq -R . | jq -sc .)
+            echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
+
+            if echo "$CHANGED" | jq -r '.[]' \
+              | grep -qE "(${ASSET_DIRS})/.*\.json$"; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No asset changes detected — skipping"
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
       - name: Deploy assets to Production
         if: steps.find-files.outputs.has_changes == 'true'
