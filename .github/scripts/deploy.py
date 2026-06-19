@@ -85,25 +85,33 @@ class AssetDeployer:
             "configurations": [],
         }
 
-        for f in repo_root.glob("**/Projects/*.json"):
-            if is_changed(f):
-                assets["projects"].append(f)
-                print(f"📦 Found Studio project: {f.name}")
+        for studio_dir in repo_root.glob("*/studio"):
+            if studio_dir.is_dir():
+                for f in studio_dir.glob("*.json"):
+                    if is_changed(f):
+                        assets["projects"].append(f)
+                        print(f"📦 Found Studio project: {f.name}")
 
-        for f in repo_root.glob("**/Automations/*.json"):
-            if is_changed(f):
-                assets["automations"].append(f)
-                print(f"🤖 Found automation: {f.name}")
+        for om_dir in repo_root.glob("*/operations_manager"):
+            if om_dir.is_dir():
+                for f in om_dir.glob("*.json"):
+                    if is_changed(f):
+                        assets["automations"].append(f)
+                        print(f"🤖 Found Operations Manager automation: {f.name}")
 
-        for f in repo_root.glob("**/LCM Resource Models/*.json"):
-            if is_changed(f):
-                assets["lifecycle_manager_resources"].append(f)
-                print(f"🔧 Found LCM resource model: {f.name}")
+        for lm_dir in repo_root.glob("*/lifecycle_manager"):
+            if lm_dir.is_dir():
+                for f in lm_dir.glob("*.json"):
+                    if is_changed(f):
+                        assets["lifecycle_manager_resources"].append(f)
+                        print(f"🔧 Found Lifecycle Manager resource: {f.name}")
 
-        for f in repo_root.glob("**/Golden Configurations/*.json"):
-            if is_changed(f):
-                assets["configurations"].append(f)
-                print(f"⚙️  Found golden config: {f.name}")
+        for cm_dir in repo_root.glob("*/configuration_manager"):
+            if cm_dir.is_dir():
+                for f in cm_dir.glob("*.json"):
+                    if is_changed(f):
+                        assets["configurations"].append(f)
+                        print(f"⚙️  Found golden config: {f.name}")
 
         return assets
 
