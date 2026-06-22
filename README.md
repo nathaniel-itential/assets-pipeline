@@ -80,10 +80,9 @@ Tags are used by this pipeline to determine what to import into the platform. Fo
 │       └── auto-rc-tag.yaml
 | 
 └──  workflows             # yaml files to determine github actions
-     ├── integration-promotion.yaml      # runs first, triggered by tag (-rc means stg, else prod)
-     ├── asset-promotion.yaml            # runs after successful completion of integration promotion, tag decides env (-rc means stg, else prod)
-     └── auto-rc-tag.yaml             
-
+|     ├── promotion.yaml            # triggered by tag (-rc means stg, else prod). Handles asset and intgration promotion
+|     └── auto-rc-tag.yaml             
+| 
 └── README.md
 ```
 
@@ -136,4 +135,4 @@ The deploy script auto-discovers any bundles matching this structure. No additio
 
 Copyright 2026 Itential, LLC
 
-This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.v
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
