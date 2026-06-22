@@ -21,13 +21,15 @@ if [ -z "$PREV_TAG" ]; then
 else
   echo "Diffing assets against $PREV_TAG"
   # core.quotePath=false prevents git from quoting paths that contain spaces
-  CHANGED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$PREV_TAG" HEAD | jq -R . | jq -sc .)
+  CHANGED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+    | grep -E "(${ASSET_DIRS})/.*\.json$" | jq -R . | jq -sc . || echo "[]")
   {
     echo "changed_files<<EOF"
     echo "$CHANGED_FILES"
     echo "EOF"
   } >> "$GITHUB_OUTPUT"
-  if echo "$CHANGED_FILES" | jq -r '.[]' | grep -qE "(${ASSET_DIRS})/.*\.json$"; then
+  count=$(echo "$CHANGED_FILES" | jq 'length')
+  if [ "$count" -gt 0 ]; then
     echo "Asset changes detected"
     echo "has_asset_changes=true" >> "$GITHUB_OUTPUT"
   else
