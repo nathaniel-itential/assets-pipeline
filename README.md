@@ -63,33 +63,27 @@ Tags are used by this pipeline to determine what to import into the platform. Fo
 ```text
 .
 ├── Asset Bundle/              # Current asset bundle structure
-|    └──Vendor
-|        └── Product
-|            ├── Automations/
-|            ├── Golden Configurations/
-|            ├── LCM Resource Models/
-|            ├── OpenAPIs/
-|            └── Projects/
+|   ├── configuration_manager/
+|   ├── integration_models/
+|   ├── lifecycle_manager/
+|   ├── operations_manager/
+|   └── studio/
 │
-├── pipelines/
-│   ├── github/                # GitHub Actions pipeline definitions
-│   |   ├── scripts/               # Shared deployment scripts
-│   │   │    ├── deploy.py
-│   │   │    ├── bump-version.sh
-|   |   │    ├── deploy_integrations.py      # uses modified async-platform to support integrations
-|   |   │    ├── deploy_integrations.sh      # uses ipctl
-|   |   │    ├── integrations_diff.sh        # git diff logic for stg and prod for integrations
-|   |   │    └── assets_diff.sh              # git diff logic for stg and prod for assets
-|   |   └── workflows/
-│   │       ├── asset-promotion.yaml
-│   │       ├── integration-promotion.yaml
-│   │       └── auto-rc-tag.yaml
-|   | 
-│   └──  workflows             # yaml files to determine github actions
-|      ├── integration-promotion.yaml   # runs first, triggered by tag (-rc means stg, else prod)
-|      ├── asset-promotion.yaml         # runs after successful completion of integration promotion, tag decides env (-rc means stg, else prod)
-|      └── auto-rc-tag.yaml             
-│
+├── github/                # GitHub Actions pipeline definitions
+|   ├── scripts/               # Shared deployment scripts
+│   │    ├── deploy.py
+│   │    ├── bump-version.sh
+|   │    ├── deploy_integrations.sh      # uses ipctl to deploy integrations
+|   │    └── diff.sh                     # git diff logic for stg/prod for integrations and assets
+|   └── workflows/
+│       ├── promotion.yaml               # central deployment script for both integrations and assets
+│       └── auto-rc-tag.yaml
+| 
+└──  workflows             # yaml files to determine github actions
+     ├── integration-promotion.yaml      # runs first, triggered by tag (-rc means stg, else prod)
+     ├── asset-promotion.yaml            # runs after successful completion of integration promotion, tag decides env (-rc means stg, else prod)
+     └── auto-rc-tag.yaml             
+
 └── README.md
 ```
 
@@ -98,14 +92,12 @@ Tags are used by this pipeline to determine what to import into the platform. Fo
 An asset bundle that holds the assets to be imported. It is organized by vendor:
 
 ```text
-├── Asset Bundle/              # Current asset bundle structure
-|    └── Vendor
-|        └── Product
-|            ├── Automations/
-|            ├── Golden Configurations/
-|            ├── LCM Resource Models/
-|            ├── OpenAPIs/     # integration OpenAPI specs
-|            └── Projects/
+└── Asset Bundle/              # Current asset bundle structure
+    ├── configuration_manager/
+    ├── integration_models/
+    ├── lifecycle_manager/
+    ├── operations_manager/
+    └── studio/
 ```
 
 You can add multiple bundles at the repo root and the deploy script will auto-discover them.
@@ -119,9 +111,7 @@ Contains CI/CD pipeline definitions organized by platform, along with shared scr
 - **`deploy.py`** — Connects to an Itential Platform instance and imports all added or modified assets from the repository. Currently supports Studio projects, Operations Manager automations, Lifecycle Manager, and Configuration Manager assets.
 - **`bump-version.sh`** — Calculates the next semantic version based on commit messages and creates release candidate tags
 - **`deploy_integrations.sh`** — Connects to the Itential Platform instance and imports all added or modified assets from the repository. Uses IPCTL.
-- **`deploy_integrations.py`** — Connects to the Itential Platform instance and imports all added or modified assets from the repository. Uses async-platform.
-- **`integrations_diff.py`** — Calculates added/modified integration files based on two most recent tags. (-rc for stg, else prod)
-- **`assets_diff.py`** — Calculates added/modified assets files based on two most recent tags. (-rc for stg, else prod)
+- **`diff.py`** — Calculates added/modified integration and asset files based on two most recent tags. (-rc for stg, else prod)
 
 
 ## Adding a New Asset Bundle
@@ -133,13 +123,11 @@ Contains CI/CD pipeline definitions organized by platform, along with shared scr
 ```text
 My Use Case Bundle/
 └── Asset Bundle/              # Current asset bundle structure
-    └── Vendor
-        └── Product
-            ├── Automations/
-            ├── Golden Configurations/
-            ├── LCM Resource Models/
-            ├── OpenAPIs/
-            └── Projects/
+    ├── configuration_manager/
+    ├── integration_models/
+    ├── lifecycle_manager/
+    ├── operations_manager/
+    └── studio/
 ```
 
 The deploy script auto-discovers any bundles matching this structure. No additional configuration is needed.
