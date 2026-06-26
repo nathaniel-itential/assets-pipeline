@@ -30,16 +30,11 @@ SECTION_ORDER = [
 
 
 def is_asset_file(path: str) -> bool:
-    if not path.endswith('.json'):
-        return False
-    return any(p in SECTION_MAP for p in Path(path).parts)
+    return path.endswith('.json') and Path(path).parent.name in SECTION_MAP
 
 
 def get_section(path: str) -> str | None:
-    for part in Path(path).parts:
-        if part in SECTION_MAP:
-            return SECTION_MAP[part]
-    return None
+    return SECTION_MAP.get(Path(path).parent.name)
 
 
 def get_display_name(path: str) -> str:
@@ -91,9 +86,16 @@ def parse_readme(content: str, repo: str) -> dict[str, dict[str, str]]:
         if line.startswith('## '):
             current_section = line[3:].strip()
         elif current_section and line.startswith('- ['):
-            m = re.match(r'- \[([^\]]+)\]\(([^)]+)\)', line)
-            if m:
-                name, url = m.group(1), m.group(2)
+            match = re.match(
+                r'- \['      # bullet + opening bracket
+                r'([^\]]+)'  # capture: display name (anything except ])
+                r'\]\('      # closing bracket + opening paren
+                r'([^)]+)'   # capture: URL (anything except ))
+                r'\)',        # closing paren
+                line,
+            )
+            if match:
+                name, url = match.group(1), match.group(2)
                 if url.startswith(base_url):
                     path = url[len(base_url):].replace('%20', ' ')
                     entries[current_section][path] = name
