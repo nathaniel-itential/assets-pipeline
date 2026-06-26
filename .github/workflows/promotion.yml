@@ -13,6 +13,8 @@ jobs:
       changed_files: ${{ steps.diff.outputs.changed_files }}
       has_spec_changes: ${{ steps.diff.outputs.has_spec_changes }}
       changed_specs: ${{ steps.diff.outputs.changed_specs }}
+      deleted_files: ${{ steps.diff.outputs.deleted_files }}
+      deleted_specs: ${{ steps.diff.outputs.deleted_specs }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
