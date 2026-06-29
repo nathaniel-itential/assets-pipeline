@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Incrementally updates README.md based on added, modified, and deleted
-asset files in the PR diff.
+Incrementally updates README.md per asset bundle based on the diff between
+the current RC tag and the previous RC tag (same tag logic as diff.sh).
+When no previous tag exists, all assets are treated as added.
 """
 
 import json
@@ -65,9 +66,29 @@ def find_asset_bundle_roots() -> list[Path]:
     return roots
 
 
-def get_pr_diff(base_sha: str, head_sha: str) -> tuple[list, list, list]:
+def get_tag_diff(current_tag: str) -> tuple[list, list, list] | None:
+    """
+    Returns (added, modified, deleted) diffed against the previous RC tag,
+    or None if no previous RC tag exists (first run).
+    """
     result = subprocess.run(
-        ['git', 'diff', '--name-status', '--no-renames', f'{base_sha}..{head_sha}'],
+        ['git', 'tag', '--sort=-creatordate'],
+        capture_output=True, text=True, check=True,
+    )
+    prev_tag = None
+    for tag in result.stdout.strip().splitlines():
+        if '-rc' in tag and tag != current_tag:
+            prev_tag = tag
+            break
+
+    if prev_tag is None:
+        print('No previous RC tag found — all assets will be added')
+        return None
+    print(f'Diffing {prev_tag}..{current_tag}')
+
+    result = subprocess.run(
+        ['git', '-c', 'core.quotePath=false', 'diff', '--name-status', '--no-renames',
+         f'{prev_tag}..{current_tag}'],
         capture_output=True, text=True, check=True,
     )
     added, modified, deleted = [], [], []
@@ -130,28 +151,28 @@ def generate_readme(entries: dict[str, dict[str, str]], repo: str) -> str:
 
 def main():
     repo = os.environ['GITHUB_REPOSITORY']
-    base_sha = os.environ['BASE_SHA']
-    head_sha = os.environ['HEAD_SHA']
+    current_tag = os.environ['CURRENT_TAG']
 
-    added, modified, deleted = get_pr_diff(base_sha, head_sha)
+    diff = get_tag_diff(current_tag)
 
     for bundle_root in find_asset_bundle_roots():
         bundle_name = bundle_root.name
-        bundle_added = [p for p in added if Path(p).parts[0] == bundle_name]
-        bundle_modified = [p for p in modified if Path(p).parts[0] == bundle_name]
-        bundle_deleted = [p for p in deleted if Path(p).parts[0] == bundle_name]
 
-        readme_path = bundle_root / 'README.md'
-
-        if not readme_path.exists():
-            all_assets = [
+        if diff is None:
+            bundle_added = [
                 str(f) for sub in SECTION_MAP
+                if (bundle_root / sub).is_dir()
                 for f in (bundle_root / sub).glob('*.json')
             ]
-            bundle_added = all_assets
             bundle_modified = []
             bundle_deleted = []
+        else:
+            added, modified, deleted = diff
+            bundle_added = [p for p in added if Path(p).parts[0] == bundle_name]
+            bundle_modified = [p for p in modified if Path(p).parts[0] == bundle_name]
+            bundle_deleted = [p for p in deleted if Path(p).parts[0] == bundle_name]
 
+        readme_path = bundle_root / 'README.md'
         existing = readme_path.read_text() if readme_path.exists() else ''
         entries = parse_readme(existing, repo)
 
