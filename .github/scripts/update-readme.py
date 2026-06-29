@@ -137,6 +137,16 @@ def main():
         bundle_deleted = [p for p in deleted if Path(p).parts[0] == bundle_name]
 
         readme_path = bundle_root / 'README.md'
+
+        if not readme_path.exists():
+            all_assets = [
+                str(f) for sub in SECTION_MAP
+                for f in (bundle_root / sub).glob('*.json')
+            ]
+            bundle_added = all_assets
+            bundle_modified = []
+            bundle_deleted = []
+
         existing = readme_path.read_text() if readme_path.exists() else ''
         entries = parse_readme(existing, repo)
 
