@@ -37,13 +37,14 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
-        run: python .github/scripts/update-readme.py
+        run: |
+          git pull --ff-only
+          python .github/scripts/update-readme.py
 
       - name: Commit README changes
         run: |
           git add '*/README.md'
           git diff --staged --quiet || git commit -m "docs: update asset README [skip ci]"
-          git pull --ff-only
           git push
 
       - name: Job summary
