@@ -41,7 +41,7 @@ jobs:
 
       - name: Commit README changes
         run: |
-          git add README.md
+          git add '*/README.md'
           git diff --staged --quiet || git commit -m "docs: update asset README [skip ci]"
           git push
 
