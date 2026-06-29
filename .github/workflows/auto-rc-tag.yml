@@ -35,8 +35,7 @@ jobs:
       - name: Update README
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.sha }}
+          CURRENT_TAG: ${{ steps.bump.outputs.rc_tag }}
         run: |
           git pull --ff-only
           python .github/scripts/update-readme.py
