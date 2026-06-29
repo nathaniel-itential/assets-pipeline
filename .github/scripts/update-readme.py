@@ -52,6 +52,14 @@ def make_url(repo: str, path: str) -> str:
     return f'https://github.com/{repo}/blob/main/{quote(path, safe="/")}'
 
 
+def find_asset_bundle_roots() -> list[Path]:
+    roots = []
+    for candidate in Path('.').iterdir():
+        if candidate.is_dir() and any((candidate / sub).is_dir() for sub in SECTION_MAP):
+            roots.append(candidate)
+    return roots
+
+
 def get_pr_diff(base_sha: str, head_sha: str) -> tuple[list, list, list]:
     result = subprocess.run(
         ['git', 'diff', '--name-status', '--no-renames', f'{base_sha}..{head_sha}'],
@@ -120,28 +128,34 @@ def main():
     base_sha = os.environ['BASE_SHA']
     head_sha = os.environ['HEAD_SHA']
 
-    readme_path = Path('README.md')
-    existing = readme_path.read_text() if readme_path.exists() else ''
-    entries = parse_readme(existing, repo)
-
     added, modified, deleted = get_pr_diff(base_sha, head_sha)
 
-    for path in deleted:
-        section = get_section(path)
-        if section and path in entries.get(section, {}):
-            del entries[section][path]
-            print(f'  removed: {path}')
+    for bundle_root in find_asset_bundle_roots():
+        bundle_name = bundle_root.name
+        bundle_added = [p for p in added if Path(p).parts[0] == bundle_name]
+        bundle_modified = [p for p in modified if Path(p).parts[0] == bundle_name]
+        bundle_deleted = [p for p in deleted if Path(p).parts[0] == bundle_name]
 
-    for path in added + modified:
-        section = get_section(path)
-        if not section:
-            continue
-        name = get_display_name(path)
-        entries[section][path] = name
-        print(f'  {"added" if path in added else "updated"}: {path} → {name}')
+        readme_path = bundle_root / 'README.md'
+        existing = readme_path.read_text() if readme_path.exists() else ''
+        entries = parse_readme(existing, repo)
 
-    readme_path.write_text(generate_readme(entries, repo))
-    print(f'README.md updated ({len(added)} added, {len(modified)} modified, {len(deleted)} deleted)')
+        for path in bundle_deleted:
+            section = get_section(path)
+            if section and path in entries.get(section, {}):
+                del entries[section][path]
+                print(f'  removed: {path}')
+
+        for path in bundle_added + bundle_modified:
+            section = get_section(path)
+            if not section:
+                continue
+            name = get_display_name(path)
+            entries[section][path] = name
+            print(f'  {"added" if path in bundle_added else "updated"}: {path} → {name}')
+
+        readme_path.write_text(generate_readme(entries, repo))
+        print(f'{bundle_root}/README.md updated ({len(bundle_added)} added, {len(bundle_modified)} modified, {len(bundle_deleted)} deleted)')
 
 
 if __name__ == '__main__':
