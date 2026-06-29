@@ -42,7 +42,12 @@ def get_display_name(path: str) -> str:
         with open(path) as f:
             data = json.load(f)
         if 'integration_models' in path:
-            return data.get('info', {}).get('title') or Path(path).stem
+            info = data.get('info', {})
+            title = info.get('title')
+            version = info.get('version')
+            if title and version:
+                return f'{title} {version}'
+            return title or Path(path).stem
         return data.get('name') or Path(path).stem
     except Exception:
         return Path(path).stem
