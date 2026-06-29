@@ -1,4 +1,5 @@
 ## Integration Models
+- [Infoblox NIOS WAPI 1.0.1](https://github.com/nathaniel-itential/assets-pipeline/blob/main/Infoblox/integration_models/infoblox_nios_wapi-1.0.1.json)
 - [Infoblox NIOS WAPI — DHCP 2.14](https://github.com/nathaniel-itential/assets-pipeline/blob/main/Infoblox/integration_models/infoblox_nios_wapi_dhcp-2.14.json)
 - [Infoblox NIOS WAPI — DNS 2.14](https://github.com/nathaniel-itential/assets-pipeline/blob/main/Infoblox/integration_models/infoblox_nios_wapi_dns-2.14.json)
 - [Infoblox NIOS WAPI — Grid 2.14](https://github.com/nathaniel-itential/assets-pipeline/blob/main/Infoblox/integration_models/infoblox_nios_wapi_grid-2.14.json)
