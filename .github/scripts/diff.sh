@@ -2,8 +2,8 @@
 set -euo pipefail
 
 CURRENT_TAG="${GITHUB_REF_NAME}"
-ASSET_DIRS="studio|operations_manager|lifecycle_manager|configuration_manager"
-INTEGRATION_MODELS_DIR="integration_models"
+ASSET_DIRS="Studio Projects|Agent Projects|Automations|LCM Resource Models|Golden Configs"
+INTEGRATION_MODELS_DIR="OpenAPIs"
 
 # Pick PREV_TAG based on whether this is an RC or release tag.
 # Deploy jobs determine environment via contains(github.ref, '-rc') in their if: conditions.
@@ -51,15 +51,15 @@ fi
 # ── Integration spec diff ─────────────────────────────────────────────────────
 if [ -z "$PREV_TAG" ]; then
   echo "No previous tag — all integration specs will be deployed"
-  CHANGED_SPECS=$(find . -path "*/${INTEGRATION_MODELS_DIR}/*.json" -type f | jq -R . | jq -sc .)
+  CHANGED_SPECS=$(find . -path "*/${INTEGRATION_MODELS_DIR}/*-latest.json" -type f | jq -R . | jq -sc .)
   echo "deleted_specs=[]" >> "$GITHUB_OUTPUT"
 else
   echo "Diffing integration specs against $PREV_TAG"
   CHANGED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
-    | grep "${INTEGRATION_MODELS_DIR}/.*\.json$" | jq -R . | jq -sc . || echo "[]")
+    | grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" | jq -R . | jq -sc . || echo "[]")
 
   DELETED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$PREV_TAG" HEAD \
-    | grep "${INTEGRATION_MODELS_DIR}/.*\.json$" | jq -R . | jq -sc . || echo "[]")
+    | grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" | jq -R . | jq -sc . || echo "[]")
   {
     echo "deleted_specs<<EOF"
     echo "$DELETED_SPECS"

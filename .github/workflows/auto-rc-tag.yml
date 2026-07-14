@@ -27,25 +27,6 @@ jobs:
         id: bump
         run: bash .github/scripts/bump-version.sh
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Update README
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          CURRENT_TAG: ${{ steps.bump.outputs.rc_tag }}
-        run: |
-          git pull --ff-only
-          python .github/scripts/update-readme.py
-
-      - name: Commit README changes
-        run: |
-          git add '*/README.md'
-          git diff --staged --quiet || git commit -m "docs: update asset README [skip ci]"
-          git push
-
       - name: Job summary
         run: |
           echo "### RC Tag Created" >> $GITHUB_STEP_SUMMARY

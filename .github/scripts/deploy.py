@@ -80,33 +80,41 @@ class AssetDeployer:
 
         assets: dict[str, list[Path]] = {
             "projects": [],
+            # "agent_projects": [],
             "automations": [],
             "lifecycle_manager_resources": [],
             "configurations": [],
         }
 
-        for studio_dir in repo_root.glob("*/studio"):
+        for studio_dir in repo_root.glob("*/Studio Projects"):
             if studio_dir.is_dir():
                 for f in studio_dir.glob("*.json"):
                     if is_changed(f):
                         assets["projects"].append(f)
                         print(f"📦 Found Studio project: {f.name}")
 
-        for om_dir in repo_root.glob("*/operations_manager"):
+        # for ap_dir in repo_root.glob("*/Agent Projects"):
+        #     if ap_dir.is_dir():
+        #         for f in ap_dir.glob("*.json"):
+        #             if is_changed(f):
+        #                 assets["agent_projects"].append(f)
+        #                 print(f"🤖 Found Agent project: {f.name}")
+
+        for om_dir in repo_root.glob("*/Automations"):
             if om_dir.is_dir():
                 for f in om_dir.glob("*.json"):
                     if is_changed(f):
                         assets["automations"].append(f)
-                        print(f"🤖 Found Operations Manager automation: {f.name}")
+                        print(f"🤖 Found automation: {f.name}")
 
-        for lm_dir in repo_root.glob("*/lifecycle_manager"):
+        for lm_dir in repo_root.glob("*/LCM Resource Models"):
             if lm_dir.is_dir():
                 for f in lm_dir.glob("*.json"):
                     if is_changed(f):
                         assets["lifecycle_manager_resources"].append(f)
-                        print(f"🔧 Found Lifecycle Manager resource: {f.name}")
+                        print(f"🔧 Found LCM resource model: {f.name}")
 
-        for cm_dir in repo_root.glob("*/configuration_manager"):
+        for cm_dir in repo_root.glob("*/Golden Configs"):
             if cm_dir.is_dir():
                 for f in cm_dir.glob("*.json"):
                     if is_changed(f):
@@ -170,6 +178,29 @@ class AssetDeployer:
             except Exception as e:
                 print(f"❌ Failed to import project {project_name}: {e}")
                 raise
+
+    # async def deploy_agent_projects(
+    #     self, client: Any, bundle_files: list[Path]
+    # ) -> None:
+    #     agent_projects_resource = client.resource("agent_projects")
+    #     for bundle_file in bundle_files:
+    #         with open(bundle_file, "r") as f:
+    #             bundle_data = json.load(f)
+    #         bundle_name = bundle_data.get("name", bundle_file.stem)
+    #         try:
+    #             members = []
+    #             for member in self.members:
+    #                 member_data = {"type": member["type"], "role": member["role"]}
+    #                 if member["type"] == "account":
+    #                     member_data["username"] = member["username"]
+    #                 else:
+    #                     member_data["name"] = member["name"]
+    #                 members.append(ProjectMember(**member_data))
+    #             await agent_projects_resource.importer(bundle_data, members=members)
+    #             print(f"✅ Successfully imported Agent project: {bundle_name}")
+    #         except Exception as e:
+    #             print(f"❌ Failed to import Agent project {bundle_name}: {e}")
+    #             raise
 
     async def deploy_automations(
         self, client: Any, automation_files: list[Path]
@@ -298,6 +329,8 @@ class AssetDeployer:
             print(f"\n✅ Connected to Itential Platform: {self.host}\n")
 
             await self.deploy_projects(client, assets["projects"])
+
+            # await self.deploy_agent_projects(client, assets["agent_projects"])
 
             await self.deploy_lifecycle_manager_resources(
                 client, assets["lifecycle_manager_resources"]
