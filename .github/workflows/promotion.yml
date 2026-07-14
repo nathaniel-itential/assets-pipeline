@@ -26,39 +26,9 @@ jobs:
         run: bash .github/scripts/diff.sh
 
 
-  deploy-assets-staging:
-    needs: [diff]
-    if: contains(github.ref, '-rc') && needs.diff.outputs.has_asset_changes == 'true'
-    runs-on: ubuntu-latest
-    environment: staging
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install asyncplatform
-        run: pip install git+https://github.com/Itential/asyncplatform.git
-
-      - name: Deploy to Staging
-        env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
-          PROJECT_MEMBERS: ${{ vars.PROJECT_MEMBERS }}
-          CHANGED_FILES: ${{ needs.diff.outputs.changed_files }}
-        run: python .github/scripts/deploy.py Staging
-
-
   deploy-assets-production:
     needs: [diff]
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc') && needs.diff.outputs.has_asset_changes == 'true'
+    if: contains(github.ref, '-rc') && needs.diff.outputs.has_asset_changes == 'true'
     runs-on: ubuntu-latest
     environment: production
 
@@ -86,43 +56,9 @@ jobs:
         run: python .github/scripts/deploy.py Production
 
 
-  deploy-integrations-staging:
-    needs: [diff]
-    if: contains(github.ref, '-rc') && needs.diff.outputs.has_spec_changes == 'true'
-    runs-on: ubuntu-latest
-    environment: staging
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install ipctl
-        run: |
-          curl -LO "https://github.com/itential/ipctl/releases/latest/download/ipctl-linux-x86_64.tar.gz"
-          tar -xzf ipctl-linux-x86_64.tar.gz
-          sudo mv ipctl /usr/local/bin/
-
-      - name: Configure ipctl
-        env:
-          HOST: ${{ secrets.PLATFORM_HOST }}
-          CLIENT_ID: ${{ secrets.PLATFORM_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.PLATFORM_CLIENT_SECRET }}
-        run: |
-          printf '[profile default]\nhost = %s\nport = 0\nuse_tls = true\nclient_id = %s\nclient_secret = %s\n' \
-            "$HOST" "$CLIENT_ID" "$CLIENT_SECRET" > /tmp/ipctl.ini
-
-      - name: Import integration models
-        env:
-          IPCTL_CONFIG_FILE: /tmp/ipctl.ini
-          CHANGED_SPECS: ${{ needs.diff.outputs.changed_specs }}
-        run: bash .github/scripts/deploy_integrations.sh
-
-
   deploy-integrations-production:
     needs: [diff]
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc') && needs.diff.outputs.has_spec_changes == 'true'
+    if: contains(github.ref, '-rc') && needs.diff.outputs.has_spec_changes == 'true'
     runs-on: ubuntu-latest
     environment: production
 
