@@ -10,7 +10,7 @@ echo "Diffing against merge base $BASE_SHA"
 # ── Asset diff ────────────────────────────────────────────────────────────────
 # core.quotePath=false prevents git from quoting paths that contain spaces
 CHANGED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$BASE_SHA" HEAD \
-  | grep -E "(${ASSET_DIRS})/.*\.json$" | jq -R . | jq -sc . || echo "[]")
+  | { grep -E "(${ASSET_DIRS})/.*\.json$" || true; } | jq -R . | jq -sc .)
 {
   echo "changed_files<<EOF"
   echo "$CHANGED_FILES"
@@ -26,7 +26,7 @@ else
 fi
 
 DELETED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$BASE_SHA" HEAD \
-  | grep -E "(${ASSET_DIRS})/.*\.json$" | jq -R . | jq -sc . || echo "[]")
+  | { grep -E "(${ASSET_DIRS})/.*\.json$" || true; } | jq -R . | jq -sc .)
 {
   echo "deleted_files<<EOF"
   echo "$DELETED_FILES"
@@ -36,10 +36,10 @@ echo "Deleted assets: $(echo "$DELETED_FILES" | jq 'length')"
 
 # ── Integration spec diff ─────────────────────────────────────────────────────
 CHANGED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$BASE_SHA" HEAD \
-  | grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" | jq -R . | jq -sc . || echo "[]")
+  | { grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" || true; } | jq -R . | jq -sc .)
 
 DELETED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$BASE_SHA" HEAD \
-  | grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" | jq -R . | jq -sc . || echo "[]")
+  | { grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" || true; } | jq -R . | jq -sc .)
 {
   echo "deleted_specs<<EOF"
   echo "$DELETED_SPECS"
