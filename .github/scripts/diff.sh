@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_SHA=$(git merge-base HEAD origin/main)
+BASE_SHA="${BASE_SHA:-}"
 ASSET_DIRS="Studio Projects|Agent Projects|Automations|LCM Resource Models|Golden Configs"
 INTEGRATION_MODELS_DIR="OpenAPIs"
 
