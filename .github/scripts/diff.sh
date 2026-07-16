@@ -1,28 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CURRENT_TAG="${GITHUB_REF_NAME}"
+BASE_SHA="${BASE_SHA:-}"
 ASSET_DIRS="Studio Projects|Agent Projects|Automations|LCM Resource Models|Golden Configs"
 INTEGRATION_MODELS_DIR="OpenAPIs"
 
-# Pick PREV_TAG based on whether this is an RC or release tag.
-# Deploy jobs determine environment via contains(github.ref, '-rc') in their if: conditions.
-if echo "$CURRENT_TAG" | grep -q '\-rc'; then
-  PREV_TAG=$(git tag --sort=-creatordate | grep '\-rc' | grep -v "^${CURRENT_TAG}$" | head -1 || true)
-else
-  PREV_TAG=$(git tag --sort=-creatordate | grep '^v' | grep -v '\-rc' | grep -v "^${CURRENT_TAG}$" | head -1 || true)
-fi
-
 # ── Asset diff ────────────────────────────────────────────────────────────────
-if [ -z "$PREV_TAG" ]; then
-  echo "No previous tag — all assets will be deployed"
+if [ -z "$BASE_SHA" ]; then
+  echo "No base SHA — all assets will be deployed"
   echo "changed_files=" >> "$GITHUB_OUTPUT"
   echo "has_asset_changes=true" >> "$GITHUB_OUTPUT"
   echo "deleted_files=[]" >> "$GITHUB_OUTPUT"
 else
-  echo "Diffing assets against $PREV_TAG"
+  echo "Diffing assets against $BASE_SHA"
   # core.quotePath=false prevents git from quoting paths that contain spaces
-  CHANGED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+  CHANGED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$BASE_SHA" HEAD \
     | grep -E "(${ASSET_DIRS})/.*\.json$" | jq -R . | jq -sc . || echo "[]")
   {
     echo "changed_files<<EOF"
@@ -38,7 +30,7 @@ else
     echo "has_asset_changes=false" >> "$GITHUB_OUTPUT"
   fi
 
-  DELETED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$PREV_TAG" HEAD \
+  DELETED_FILES=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$BASE_SHA" HEAD \
     | grep -E "(${ASSET_DIRS})/.*\.json$" | jq -R . | jq -sc . || echo "[]")
   {
     echo "deleted_files<<EOF"
@@ -49,16 +41,16 @@ else
 fi
 
 # ── Integration spec diff ─────────────────────────────────────────────────────
-if [ -z "$PREV_TAG" ]; then
-  echo "No previous tag — all integration specs will be deployed"
+if [ -z "$BASE_SHA" ]; then
+  echo "No base SHA — all integration specs will be deployed"
   CHANGED_SPECS=$(find . -path "*/${INTEGRATION_MODELS_DIR}/*-latest.json" -type f | jq -R . | jq -sc .)
   echo "deleted_specs=[]" >> "$GITHUB_OUTPUT"
 else
-  echo "Diffing integration specs against $PREV_TAG"
-  CHANGED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$PREV_TAG" HEAD \
+  echo "Diffing integration specs against $BASE_SHA"
+  CHANGED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=AM "$BASE_SHA" HEAD \
     | grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" | jq -R . | jq -sc . || echo "[]")
 
-  DELETED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$PREV_TAG" HEAD \
+  DELETED_SPECS=$(git -c core.quotePath=false diff --name-only --diff-filter=D "$BASE_SHA" HEAD \
     | grep "${INTEGRATION_MODELS_DIR}/.*-latest\.json$" | jq -R . | jq -sc . || echo "[]")
   {
     echo "deleted_specs<<EOF"

@@ -1,9 +1,10 @@
 name: Itential Asset & Integration Promotion
 
 on:
-  push:
-    tags:
-      - "v*"
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 jobs:
   diff:
@@ -23,12 +24,14 @@ jobs:
 
       - name: Find changed files
         id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: bash .github/scripts/diff.sh
 
 
   deploy-assets-production:
     needs: [diff]
-    if: contains(github.ref, '-rc') && needs.diff.outputs.has_asset_changes == 'true'
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'develop' && needs.diff.outputs.has_asset_changes == 'true'
     runs-on: ubuntu-latest
     environment: production
 
@@ -58,7 +61,7 @@ jobs:
 
   deploy-integrations-production:
     needs: [diff]
-    if: contains(github.ref, '-rc') && needs.diff.outputs.has_spec_changes == 'true'
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'develop' && needs.diff.outputs.has_spec_changes == 'true'
     runs-on: ubuntu-latest
     environment: production
 
